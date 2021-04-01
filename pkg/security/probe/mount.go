@@ -8,11 +8,13 @@
 package probe
 
 import (
+	"context"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DataDog/gopsutil/process"
 
@@ -62,12 +64,18 @@ func newMountEventFromMountInfo(mnt *mountinfo.Info) (*model.MountEvent, error) 
 	}, nil
 }
 
+type deleteRequest struct {
+	mount     *model.MountEvent
+	timeoutAt time.Time
+}
+
 // MountResolver represents a cache for mountpoints and the corresponding file systems
 type MountResolver struct {
-	probe   *Probe
-	lock    sync.RWMutex
-	mounts  map[uint32]*model.MountEvent
-	devices map[uint32]map[uint32]*model.MountEvent
+	probe       *Probe
+	lock        sync.RWMutex
+	mounts      map[uint32]*model.MountEvent
+	devices     map[uint32]map[uint32]*model.MountEvent
+	deleteQueue []deleteRequest
 }
 
 // SyncCache - Snapshots the current mount points of the system by reading through /proc/[pid]/mountinfo.
@@ -143,7 +151,8 @@ func (mr *MountResolver) Delete(mountID uint32) error {
 	if !exists {
 		return ErrMountNotFound
 	}
-	mr.delete(mount)
+
+	mr.deleteQueue = append(mr.deleteQueue, deleteRequest{mount: mount, timeoutAt: time.Now().Add(5 * time.Second)})
 
 	return nil
 }
@@ -186,6 +195,11 @@ func (mr *MountResolver) Insert(e model.MountEvent) {
 }
 
 func (mr *MountResolver) insert(e model.MountEvent) {
+	// umount the previous one if exists
+	if prev, ok := mr.mounts[e.MountID]; ok {
+		mr.delete(prev)
+	}
+
 	// Retrieve the parent paths and strip it from the event
 	p, ok := mr.mounts[e.ParentMountID]
 	if ok {
@@ -255,6 +269,35 @@ func (mr *MountResolver) getOverlayPath(mount *model.MountEvent) string {
 	}
 
 	return ""
+}
+
+// Start starts the resolver
+func (mr *MountResolver) Start(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case now := <-ticker.C:
+				mr.lock.Lock()
+				for i, req := range mr.deleteQueue {
+					if req.timeoutAt.After(now) {
+						mr.deleteQueue = mr.deleteQueue[i:]
+						break
+					}
+
+					// check if not already replaced
+					if prev := mr.mounts[req.mount.MountID]; prev == req.mount {
+						mr.delete(req.mount)
+					}
+				}
+				mr.lock.Unlock()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 // GetMountPath returns the path of a mount identified by its mount ID. The first path is the container mount path if
