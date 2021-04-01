@@ -236,7 +236,8 @@ func (l *DockerListener) createService(cID string) {
 	var isKube bool
 	cInspect, err := l.dockerUtil.Inspect(cID, false)
 	if err != nil {
-		log.Errorf("Failed to inspect container %s - %s", cID[:12], err)
+		log.Errorf("Failed to inspect container '%s', not creating AD service, err: %s", cID[:12], err)
+		return
 	} else {
 		containerImage, err = l.dockerUtil.ResolveImageNameFromContainer(cInspect)
 		if err != nil {
