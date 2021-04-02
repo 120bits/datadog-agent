@@ -259,6 +259,8 @@ type ExecEvent struct {
 	Process
 
 	Args          string   `field:"args" handler:"ResolveExecArgs"`
+	ArgsFlags     []string `field:"args_flags" handler:"ResolveExecArgsFlags"`
+	ArgsOptions   []string `field:"args_options" handler:"ResolveExecArgsOptions"`
 	ArgsTruncated bool     `field:"args_truncated"`
 	Envs          []string `field:"envs" handler:"ResolveExecEnvs"`
 	EnvsTruncated bool     `field:"envs_truncated"`

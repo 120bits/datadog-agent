@@ -450,6 +450,30 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Weight: eval.HandlerWeight,
 		}, nil
 
+	case "exec.args_flags":
+		return &eval.StringArrayEvaluator{
+
+			EvalFnc: func(ctx *eval.Context) []string {
+
+				return (*Event)(ctx.Object).Exec.ArgsFlags
+			},
+			Field: field,
+
+			Weight: eval.HandlerWeight,
+		}, nil
+
+	case "exec.args_options":
+		return &eval.StringArrayEvaluator{
+
+			EvalFnc: func(ctx *eval.Context) []string {
+
+				return (*Event)(ctx.Object).Exec.ArgsOptions
+			},
+			Field: field,
+
+			Weight: eval.HandlerWeight,
+		}, nil
+
 	case "exec.args_truncated":
 		return &eval.BoolEvaluator{
 			EvalFnc: func(ctx *eval.Context) bool {
@@ -3814,6 +3838,10 @@ func (e *Event) GetFields() []eval.Field {
 
 		"exec.args",
 
+		"exec.args_flags",
+
+		"exec.args_options",
+
 		"exec.args_truncated",
 
 		"exec.cap_effective",
@@ -4468,6 +4496,14 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "exec.args":
 
 		return e.Exec.Args, nil
+
+	case "exec.args_flags":
+
+		return e.Exec.ArgsFlags, nil
+
+	case "exec.args_options":
+
+		return e.Exec.ArgsOptions, nil
 
 	case "exec.args_truncated":
 
@@ -6178,6 +6214,12 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "exec.args":
 		return "exec", nil
 
+	case "exec.args_flags":
+		return "exec", nil
+
+	case "exec.args_options":
+		return "exec", nil
+
 	case "exec.args_truncated":
 		return "exec", nil
 
@@ -7088,6 +7130,14 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 
 	case "exec.args":
+
+		return reflect.String, nil
+
+	case "exec.args_flags":
+
+		return reflect.String, nil
+
+	case "exec.args_options":
 
 		return reflect.String, nil
 
@@ -8478,6 +8528,28 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Exec.Args"}
 		}
 		e.Exec.Args = str
+
+		return nil
+
+	case "exec.args_flags":
+
+		var ok bool
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Exec.ArgsFlags"}
+		}
+		e.Exec.ArgsFlags = append(e.Exec.ArgsFlags, str)
+
+		return nil
+
+	case "exec.args_options":
+
+		var ok bool
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Exec.ArgsOptions"}
+		}
+		e.Exec.ArgsOptions = append(e.Exec.ArgsOptions, str)
 
 		return nil
 
